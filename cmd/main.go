@@ -6,6 +6,7 @@ import (
 
 	"github.com/Oralkhan-coder/mind-map/config"
 	internalHttp "github.com/Oralkhan-coder/mind-map/internal/http"
+	"github.com/Oralkhan-coder/mind-map/internal/service"
 	mongo "github.com/Oralkhan-coder/mind-map/pkg"
 )
 
@@ -19,6 +20,9 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	server := internalHttp.NewSimpleServer()
+	emailService := service.NewEmailService(cfg.Email)
+	authService := service.NewAuthService(db.Database.Collection("users"), emailService, cfg.Secret)
+
+	server := internalHttp.NewSimpleServer(authService, cfg.Secret)
 	server.Run(ctx)
 }

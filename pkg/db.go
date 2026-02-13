@@ -6,24 +6,17 @@ import (
 	"log"
 	"time"
 
+	"github.com/Oralkhan-coder/mind-map/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-type DbConfig struct {
-	Host     string `env:"MONGO_HOST"`
-	Port     uint16 `env:"MONGO_PORT"`
-	Username string `env:"MONGO_USERNAME"`
-	Password string `env:"MONGO_PASSWORD"`
-	Database string `env:"MONGO_DATABASE"`
-}
 
 type DB struct {
 	Client   *mongo.Client
 	Database *mongo.Database
 }
 
-func NewDB(ctx context.Context, cfg *DbConfig) (*DB, error) {
+func NewDB(ctx context.Context, cfg *config.DbConfig) (*DB, error) {
 	uri := fmt.Sprintf(
 		"mongodb://%s:%d",
 		cfg.Host,

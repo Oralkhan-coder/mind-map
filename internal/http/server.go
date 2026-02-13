@@ -2,27 +2,34 @@ package http
 
 import (
 	"context"
-	"net/http"
 
+	"github.com/Oralkhan-coder/mind-map/config"
 	"github.com/Oralkhan-coder/mind-map/internal/http/middleware"
+	"github.com/Oralkhan-coder/mind-map/internal/http/transport"
 	"github.com/gin-gonic/gin"
 )
 
 type SimpleServer struct {
-	server *gin.Engine
+	server  *gin.Engine
+	authSrv AuthSrv
 }
 
-func NewSimpleServer() *SimpleServer {
-	// init handlers
+func NewSimpleServer(auth AuthSrv, cfg *config.SecretConfig) *SimpleServer {
+	authHandler := transport.NewAuthHandler(auth)
 
 	router := gin.Default()
 	router.Use(middleware.CORS())
 	router.Use(middleware.CORP())
 	router.Use(middleware.ErrorHandler())
 
-	router.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
+	router.POST("/signup", authHandler.SignUp)
+	router.GET("/confirm", authHandler.ConfirmEmail)
 
-	// protected endpoints
+	protected := router.Group("/")
+	protected.Use(middleware.AuthMiddleware(cfg.JwtSecret))
+	{
+		protected.GET("/ping", func(c *gin.Context) { c.JSON(200, gin.H{"ping": "pong"}) })
+	}
 
 	return &SimpleServer{
 		server: router,
