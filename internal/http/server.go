@@ -23,7 +23,9 @@ func NewSimpleServer(auth AuthSrv, cfg *config.SecretConfig) *SimpleServer {
 	router.Use(middleware.ErrorHandler())
 
 	router.POST("/signup", authHandler.SignUp)
+	router.POST("/login", authHandler.Login)
 	router.GET("/confirm", authHandler.ConfirmEmail)
+	router.GET("/test", func(c *gin.Context) { c.JSON(200, gin.H{"hello": "world"}) })
 
 	protected := router.Group("/")
 	protected.Use(middleware.AuthMiddleware(cfg.JwtSecret))

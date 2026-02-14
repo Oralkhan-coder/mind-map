@@ -130,3 +130,26 @@ func (srv *AuthService) ConfirmEmail(ctx context.Context, token string) error {
 	}
 	return nil
 }
+
+func (srv *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.TokenResponse, error) {
+	var user model.User
+	err := srv.collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, core.BadRequest("user does not exist with this email")
+		}
+		return nil, core.InternalServerError(err.Error())
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		return nil, core.BadRequest("invalid password")
+	}
+
+	token, err := core.GenerateJwtToken(user.ID.Hex(), srv.secretConfig.JwtSecret)
+	if err != nil {
+		return nil, core.InternalServerError(err.Error())
+	}
+
+	return &dto.TokenResponse{AccessToken: token, RefreshToken: ""}, nil
+}
