@@ -49,3 +49,19 @@ func (h *AuthHandler) ConfirmEmail(c *gin.Context) {
 
 	c.Status(http.StatusOK)
 }
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(core.BadRequest("invalid request"))
+		return
+	}
+
+	res, err := h.srv.Login(c.Request.Context(), &req)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}

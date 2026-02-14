@@ -9,4 +9,5 @@ import (
 type AuthService interface {
 	SignUp(ctx context.Context, req dto.SignUpRequest) (string, error)
 	ConfirmEmail(ctx context.Context, token string) error
+	Login(ctx context.Context, req *dto.LoginRequest) (*dto.TokenResponse, error)
 }
