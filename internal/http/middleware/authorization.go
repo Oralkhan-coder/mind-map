@@ -31,8 +31,21 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
-		c.Set("user", claims)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.Error(core.Unauthorized("invalid token claims"))
+			c.Abort()
+			return
+		}
+
+		userId, ok := claims["sub"].(string)
+		if !ok {
+			c.Error(core.Unauthorized("user id not found in token"))
+			c.Abort()
+			return
+		}
+
+		c.Set("userId", userId)
 
 		c.Next()
 	}
