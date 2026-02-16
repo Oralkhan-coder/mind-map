@@ -20,3 +20,8 @@ type MapService interface {
 	UpdateMap(ctx context.Context, mapId, userId string, update *dto.MapCURequest) error
 	DeleteMap(ctx context.Context, mapId, userId string) error
 }
+
+type NodeService interface {
+	GetByMapId(ctx context.Context, mapId, userId string) ([]*model.Node, error)
+	CreateNode(ctx context.Context, req *dto.NodeCreateRequest, userId, mapId string) (string, error)
+}

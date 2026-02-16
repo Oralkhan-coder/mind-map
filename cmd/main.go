@@ -24,7 +24,8 @@ func main() {
 	userService := service.NewUserService(db.Database.Collection("users"))
 	authService := service.NewAuthService(userService, emailService, cfg.Secret)
 	mapService := service.NewMapService(db.Database.Collection("maps"), userService)
+	nodeService := service.NewNodeService(db.Database.Collection("nodes"), userService, mapService)
 
-	server := internalHttp.NewSimpleServer(authService, mapService, cfg.Secret)
+	server := internalHttp.NewSimpleServer(authService, mapService, nodeService, cfg.Secret)
 	server.Run(ctx)
 }

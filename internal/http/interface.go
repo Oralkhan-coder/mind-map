@@ -9,3 +9,7 @@ type AuthSrv interface {
 type MapSrv interface {
 	transport.MapService
 }
+
+type NodeSrv interface {
+	transport.NodeService
+}

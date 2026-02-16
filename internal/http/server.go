@@ -13,11 +13,13 @@ type SimpleServer struct {
 	server  *gin.Engine
 	authSrv AuthSrv
 	mapSrv  MapSrv
+	nodeSrv NodeSrv
 }
 
-func NewSimpleServer(auth AuthSrv, maps MapSrv, cfg *config.SecretConfig) *SimpleServer {
+func NewSimpleServer(auth AuthSrv, maps MapSrv, node NodeSrv, cfg *config.SecretConfig) *SimpleServer {
 	authHandler := transport.NewAuthHandler(auth)
 	mapHandler := transport.NewMapHandler(maps)
+	nodeHandler := transport.NewNodeHandler(node)
 
 	router := gin.Default()
 	router.Use(middleware.CORS())
@@ -36,12 +38,16 @@ func NewSimpleServer(auth AuthSrv, maps MapSrv, cfg *config.SecretConfig) *Simpl
 		protected.GET("/maps/:id", mapHandler.GetByID)
 		protected.PUT("/maps/:id", mapHandler.UpdateMap)
 		protected.DELETE("/maps/:id", mapHandler.DeleteMap)
+
+		protected.GET("/maps/:id/nodes", nodeHandler.GetByMapId)
+		protected.POST("/maps/:id/nodes", nodeHandler.CreateNode)
 	}
 
 	return &SimpleServer{
 		server:  router,
 		authSrv: auth,
 		mapSrv:  maps,
+		nodeSrv: node,
 	}
 }
 
