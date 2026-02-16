@@ -14,12 +14,12 @@ import (
 )
 
 type MapService struct {
-	mapCollection  *mongo.Collection
-	userCollection *mongo.Collection
+	mapCollection *mongo.Collection
+	userService   *UserService
 }
 
-func NewMapService(mapCollection, userCollection *mongo.Collection) *MapService {
-	return &MapService{mapCollection, userCollection}
+func NewMapService(mapCollection *mongo.Collection, userService *UserService) *MapService {
+	return &MapService{mapCollection, userService}
 }
 
 func (srv *MapService) GetMaps(ctx context.Context, userId string) ([]*model.Map, error) {
@@ -76,14 +76,8 @@ func (srv *MapService) GetByID(ctx context.Context, mapId, userId string) (*mode
 }
 
 func (srv *MapService) CreateMap(ctx context.Context, req *dto.MapCURequest, userId string) (string, error) {
-	oid, err := primitive.ObjectIDFromHex(userId)
-	if err != nil {
-		return "", core.InternalServerError(err.Error())
-	}
-	var user model.User
-	err = srv.userCollection.FindOne(ctx, bson.D{{"_id", oid}}).Decode(&user)
-	if err != nil {
-		return "", core.BadRequest("user does not exist")
+	if _, err := srv.userService.GetUserById(ctx, userId); err != nil {
+		return "", err
 	} else if req.Title == "" {
 		return "", core.BadRequest("title is required")
 	}
@@ -141,17 +135,12 @@ func (srv *MapService) UpdateMap(ctx context.Context, mapId, userId string, upda
 }
 
 func (srv *MapService) DeleteMap(ctx context.Context, mapId, userId string) error {
-	oid, err := primitive.ObjectIDFromHex(userId)
+	user, err := srv.userService.GetUserById(ctx, userId)
 	if err != nil {
-		return core.BadRequest("invalid user id: " + err.Error())
-	}
-	var user model.User
-	err = srv.userCollection.FindOne(ctx, bson.D{{"_id", oid}}).Decode(&user)
-	if err != nil {
-		return core.BadRequest("user does not exist: " + err.Error())
+		return err
 	}
 
-	oid, err = primitive.ObjectIDFromHex(mapId)
+	oid, err := primitive.ObjectIDFromHex(mapId)
 	if err != nil {
 		return core.InternalServerError(err.Error())
 	}

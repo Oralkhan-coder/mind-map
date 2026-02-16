@@ -21,8 +21,9 @@ func main() {
 	defer db.Close(ctx)
 
 	emailService := service.NewEmailService(cfg.Email)
-	authService := service.NewAuthService(db.Database.Collection("users"), emailService, cfg.Secret)
-	mapService := service.NewMapService(db.Database.Collection("maps"), db.Database.Collection("users"))
+	userService := service.NewUserService(db.Database.Collection("users"))
+	authService := service.NewAuthService(userService, emailService, cfg.Secret)
+	mapService := service.NewMapService(db.Database.Collection("maps"), userService)
 
 	server := internalHttp.NewSimpleServer(authService, mapService, cfg.Secret)
 	server.Run(ctx)
