@@ -14,29 +14,23 @@ import (
 	"github.com/Oralkhan-coder/mind-map/internal/http/dto"
 	"github.com/Oralkhan-coder/mind-map/internal/model"
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	collection   *mongo.Collection
+	userService  *UserService
 	emailService *EmailService
 	secretConfig *config.SecretConfig
 }
 
-func NewAuthService(collection *mongo.Collection, emailService *EmailService, secretConfig *config.SecretConfig) *AuthService {
-	return &AuthService{collection, emailService, secretConfig}
+func NewAuthService(userService *UserService, emailService *EmailService, secretConfig *config.SecretConfig) *AuthService {
+	return &AuthService{userService, emailService, secretConfig}
 }
 
 func (srv *AuthService) SignUp(ctx context.Context, req dto.SignUpRequest) (string, error) {
-	var existingUser model.User
-	err := srv.collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&existingUser)
-	if err == nil {
-		return "", core.BadRequest("user with this email already exists")
-	} else if !errors.Is(err, mongo.ErrNoDocuments) {
-		return "", core.InternalServerError(err.Error())
+	if _, err := srv.userService.GetUserByEmail(ctx, req.Email); err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		return "", err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
@@ -49,17 +43,12 @@ func (srv *AuthService) SignUp(ctx context.Context, req dto.SignUpRequest) (stri
 		return "", err
 	}
 
-	res, err := srv.collection.InsertOne(ctx, user)
+	id, err := srv.userService.CreateUser(ctx, user)
 	if err != nil {
-		return "", core.InternalServerError(err.Error())
+		return "", err
 	}
 
-	oid, ok := res.InsertedID.(primitive.ObjectID)
-	if !ok {
-		return "", core.InternalServerError("failed to get inserted ID")
-	}
-
-	token, err := core.GenerateJwtToken(oid.Hex(), srv.secretConfig.JwtSecret)
+	token, err := core.GenerateJwtToken(id, srv.secretConfig.JwtSecret)
 	if err != nil {
 		return "", core.InternalServerError(err.Error())
 	}
@@ -78,13 +67,14 @@ func (srv *AuthService) SignUp(ctx context.Context, req dto.SignUpRequest) (stri
 	}
 
 	go func() {
+		fmt.Printf("http://localhost:8080/confirm?token=%s \n", token)
 		err := srv.emailService.SendHTML("Confirm Your Registration	", body.String(), req.Email)
 		if err != nil {
 			log.Printf("Background email task failed for %s: %v", req.Email, err)
 		}
 	}()
 
-	return oid.Hex(), nil
+	return id, nil
 }
 
 func (srv *AuthService) ConfirmEmail(ctx context.Context, token string) error {
@@ -111,34 +101,21 @@ func (srv *AuthService) ConfirmEmail(ctx context.Context, token string) error {
 		return core.BadRequest("invalid subject claim")
 	}
 
-	objID, err := primitive.ObjectIDFromHex(sub)
+	err = srv.userService.VerifyUser(ctx, sub)
 	if err != nil {
-		return core.BadRequest("invalid user id")
+		return err
 	}
 
-	res, err := srv.collection.UpdateOne(
-		ctx,
-		bson.M{"_id": objID, "is_verified": false},
-		bson.M{"$set": bson.M{"is_verified": true}},
-	)
-	if err != nil {
-		return core.InternalServerError(err.Error())
-	}
-
-	if res.MatchedCount == 0 {
-		return core.NotFound("user not found or already verified")
-	}
 	return nil
 }
 
 func (srv *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.TokenResponse, error) {
-	var user model.User
-	err := srv.collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
+	user, err := srv.userService.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, core.BadRequest("user does not exist with this email")
+			return nil, core.NotFound("user does not exist")
 		}
-		return nil, core.InternalServerError(err.Error())
+		return nil, err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
