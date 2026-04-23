@@ -41,6 +41,7 @@ func NewSimpleServer(auth AuthSrv, maps MapSrv, node NodeSrv, cfg *config.Secret
 
 		protected.GET("/maps/:id/nodes", nodeHandler.GetByMapId)
 		protected.POST("/maps/:id/nodes", nodeHandler.CreateNode)
+		protected.PATCH("/maps/:id/nodes")
 	}
 
 	return &SimpleServer{
